@@ -54,7 +54,8 @@ Password: postgres
 |
 |-- notebooks/
 |   |-- 01_postgres_connection_example.ipynb
-|   `-- 02_eda_dwh_readiness.ipynb
+|   |-- 02_eda_dwh_readiness.ipynb
+|   `-- 03_dwh_validation.ipynb
 |
 |-- reports/
 |   |-- data_quality/
@@ -97,7 +98,7 @@ Password: postgres
 | `data/raw` | Chua 7 file CSV goc tu Kaggle |
 | `src` | Python pipeline chinh |
 | `scripts` | Script sinh EDA notebook/report |
-| `notebooks` | Notebook EDA va notebook test ket noi |
+| `notebooks` | Notebook test ket noi, EDA va DWH validation |
 | `reports/eda` | Ket qua EDA |
 | `reports/dwh` | Tai lieu thiet ke Star Schema |
 | `reports/pipeline` | Tai lieu pipeline Raw -> Staging -> DWH |
@@ -139,6 +140,12 @@ Chay notebook EDA:
 
 ```bash
 docker exec fashion_jupyter jupyter nbconvert --to notebook --execute --inplace notebooks/02_eda_dwh_readiness.ipynb
+```
+
+Chay notebook kiem tra DWH:
+
+```bash
+docker exec fashion_jupyter jupyter nbconvert --to notebook --execute --inplace notebooks/03_dwh_validation.ipynb
 ```
 
 ## Database Tables
