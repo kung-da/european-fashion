@@ -18,10 +18,12 @@ def sample_values(values: pd.Series, limit: int = 5) -> str:
 
 
 def issue(layer: str, table: str, rule: str, count: int, samples: str = "", severity: str = "Warning") -> dict:
+    status = "PASS" if count == 0 else "INFO" if severity == "Info" else "FAIL" if severity == "Critical" else "WARN"
     return {
         "layer_name": layer,
         "table_name": table,
         "rule_name": rule,
+        "status": status,
         "issue_count": int(count),
         "sample_values": samples,
         "severity": severity,
@@ -29,18 +31,18 @@ def issue(layer: str, table: str, rule: str, count: int, samples: str = "", seve
     }
 
 
-def add_issue(issues: list[dict], layer: str, table: str, rule: str, mask: pd.Series, sample_col: pd.Series, severity: str = "Warning") -> None:
+def add_issue(issues: list[dict], layer: str, table: str, rule: str, mask: pd.Series, sample_col: pd.Series, severity: str = "Warning", write_all: bool = True) -> None:
     count = int(mask.fillna(False).sum())
-    if count:
+    if count or write_all:
         issues.append(issue(layer, table, rule, count, sample_values(sample_col[mask.fillna(False)]), severity))
 
 
-def duplicate_issues(issues: list[dict], layer: str, table: str, df: pd.DataFrame, keys: list[str]) -> None:
+def duplicate_issues(issues: list[dict], layer: str, table: str, df: pd.DataFrame, keys: list[str], write_all: bool = True) -> None:
     mask = df.duplicated(keys, keep=False)
-    add_issue(issues, layer, table, f"duplicate key: {' + '.join(keys)}", mask, df[keys].astype(str).agg(":".join, axis=1))
+    add_issue(issues, layer, table, f"duplicate key: {' + '.join(keys)}", mask, df[keys].astype(str).agg(":".join, axis=1), write_all=write_all)
 
 
-def run_data_quality(write_all: bool = False) -> pd.DataFrame:
+def run_data_quality(write_all: bool = True) -> pd.DataFrame:
     engine = get_engine()
     ensure_schemas(engine)
     raw = read_schema_tables(engine, "raw", RAW_TABLES)
@@ -48,12 +50,12 @@ def run_data_quality(write_all: bool = False) -> pd.DataFrame:
     dwh = read_schema_tables(engine, "dwh", DWH_TABLES)
     issues: list[dict] = []
 
-    duplicate_issues(issues, "raw", "customers", raw["customers"], ["customer_id"])
-    duplicate_issues(issues, "raw", "products", raw["products"], ["product_id"])
-    duplicate_issues(issues, "raw", "sales", raw["sales"], ["sale_id"])
-    duplicate_issues(issues, "raw", "salesitems", raw["salesitems"], ["item_id"])
-    duplicate_issues(issues, "raw", "campaigns", raw["campaigns"], ["campaign_id"])
-    duplicate_issues(issues, "raw", "stock", raw["stock"], ["product_id", "country"])
+    duplicate_issues(issues, "raw", "customers", raw["customers"], ["customer_id"], write_all)
+    duplicate_issues(issues, "raw", "products", raw["products"], ["product_id"], write_all)
+    duplicate_issues(issues, "raw", "sales", raw["sales"], ["sale_id"], write_all)
+    duplicate_issues(issues, "raw", "salesitems", raw["salesitems"], ["item_id"], write_all)
+    duplicate_issues(issues, "raw", "campaigns", raw["campaigns"], ["campaign_id"], write_all)
+    duplicate_issues(issues, "raw", "stock", raw["stock"], ["product_id", "country"], write_all)
 
     optional_missing_columns = {
         ("stg_campaigns", "discount_amount_value"),
@@ -61,13 +63,13 @@ def run_data_quality(write_all: bool = False) -> pd.DataFrame:
         ("stg_channels", "description"),
     }
     for table, df in stg.items():
-        add_issue(issues, "staging", table, "invalid rows", ~df["is_valid"].fillna(False), df.get("validation_errors", pd.Series(dtype=str)))
+        add_issue(issues, "staging", table, "invalid rows", ~df["is_valid"].fillna(False), df.get("validation_errors", pd.Series(dtype=str)), write_all=write_all)
         for col in df.columns:
             if col in ["validation_errors"]:
                 continue
             if (table, col) in optional_missing_columns:
                 continue
-            add_issue(issues, "staging", table, f"missing value: {col}", df[col].isna(), df[col])
+            add_issue(issues, "staging", table, f"missing value: {col}", df[col].isna(), df[col], write_all=write_all)
 
     add_issue(
         issues,
@@ -76,6 +78,7 @@ def run_data_quality(write_all: bool = False) -> pd.DataFrame:
         "customer_id not found in stg_customers",
         ~stg["stg_sales"]["customer_id"].isin(stg["stg_customers"]["customer_id"]),
         stg["stg_sales"]["customer_id"],
+        write_all=write_all,
     )
     add_issue(
         issues,
@@ -84,6 +87,7 @@ def run_data_quality(write_all: bool = False) -> pd.DataFrame:
         "sale_id not found in stg_sales",
         ~stg["stg_salesitems"]["sale_id"].isin(stg["stg_sales"]["sale_id"]),
         stg["stg_salesitems"]["sale_id"],
+        write_all=write_all,
     )
     add_issue(
         issues,
@@ -92,6 +96,7 @@ def run_data_quality(write_all: bool = False) -> pd.DataFrame:
         "product_id not found in stg_products",
         ~stg["stg_salesitems"]["product_id"].isin(stg["stg_products"]["product_id"]),
         stg["stg_salesitems"]["product_id"],
+        write_all=write_all,
     )
     add_issue(
         issues,
@@ -100,6 +105,7 @@ def run_data_quality(write_all: bool = False) -> pd.DataFrame:
         "product_id not found in stg_products",
         ~stg["stg_stock"]["product_id"].isin(stg["stg_products"]["product_id"]),
         stg["stg_stock"]["product_id"],
+        write_all=write_all,
     )
 
     rec = stg["stg_sales"][["sale_id", "total_amount"]].merge(
@@ -108,17 +114,21 @@ def run_data_quality(write_all: bool = False) -> pd.DataFrame:
         how="left",
     )
     rec["amount_diff"] = rec["total_amount"].fillna(0) - rec["sum_item_total"].fillna(0)
-    add_issue(issues, "staging", "sales_vs_salesitems", "total_amount differs from sum item_total", rec["amount_diff"].abs() > 0.01, rec["sale_id"].astype(str) + " diff=" + rec["amount_diff"].round(2).astype(str))
+    add_issue(issues, "staging", "sales_vs_salesitems", "total_amount differs from sum item_total", rec["amount_diff"].abs() > 0.01, rec["sale_id"].astype(str) + " diff=" + rec["amount_diff"].round(2).astype(str), write_all=write_all)
 
     expected_fact_sales = len(stg["stg_salesitems"][stg["stg_salesitems"]["is_valid"].fillna(False)])
     actual_fact_sales = len(dwh["fact_sales"])
     if expected_fact_sales != actual_fact_sales:
         issues.append(issue("dwh", "fact_sales", "row count differs from valid stg_salesitems", abs(expected_fact_sales - actual_fact_sales), f"expected={expected_fact_sales}, actual={actual_fact_sales}"))
+    elif write_all:
+        issues.append(issue("dwh", "fact_sales", "row count equals valid stg_salesitems", 0, f"expected={expected_fact_sales}, actual={actual_fact_sales}"))
 
     expected_fact_order = len(stg["stg_sales"][stg["stg_sales"]["is_valid"].fillna(False)])
     actual_fact_order = len(dwh["fact_order"])
     if expected_fact_order != actual_fact_order:
         issues.append(issue("dwh", "fact_order", "row count differs from valid stg_sales", abs(expected_fact_order - actual_fact_order), f"expected={expected_fact_order}, actual={actual_fact_order}"))
+    elif write_all:
+        issues.append(issue("dwh", "fact_order", "row count equals valid stg_sales", 0, f"expected={expected_fact_order}, actual={actual_fact_order}"))
 
     for table in ["fact_order", "fact_sales", "fact_inventory", "fact_customer_activity"]:
         df = dwh[table]
@@ -126,7 +136,7 @@ def run_data_quality(write_all: bool = False) -> pd.DataFrame:
         for col in fk_cols:
             if table == "fact_sales" and col == "campaign_key":
                 continue
-            add_issue(issues, "dwh", table, f"FK null: {col}", df[col].isna(), df[col])
+            add_issue(issues, "dwh", table, f"FK null: {col}", df[col].isna(), df[col], write_all=write_all)
 
     if "campaign_key" in dwh["fact_sales"].columns:
         add_issue(
@@ -137,6 +147,7 @@ def run_data_quality(write_all: bool = False) -> pd.DataFrame:
             dwh["fact_sales"]["campaign_key"].isna(),
             dwh["fact_sales"]["sale_id"],
             severity="Info",
+            write_all=write_all,
         )
 
     for table, cols in {
@@ -146,11 +157,11 @@ def run_data_quality(write_all: bool = False) -> pd.DataFrame:
     }.items():
         df = dwh[table]
         for col in cols:
-            add_issue(issues, "dwh", table, f"negative measure: {col}", df[col] < 0, df[col])
+            add_issue(issues, "dwh", table, f"negative measure: {col}", df[col] < 0, df[col], write_all=write_all)
 
     dq = pd.DataFrame(issues)
     if dq.empty:
-        dq = pd.DataFrame(columns=["issue_id", "layer_name", "table_name", "rule_name", "issue_count", "sample_values", "severity", "checked_at"])
+        dq = pd.DataFrame(columns=["issue_id", "layer_name", "table_name", "rule_name", "status", "issue_count", "sample_values", "severity", "checked_at"])
     dq = dq[dq["issue_count"].gt(0)] if not write_all and not dq.empty else dq
     if "issue_id" not in dq.columns:
         dq.insert(0, "issue_id", range(1, len(dq) + 1))
@@ -166,7 +177,11 @@ def write_quality_markdown(dq: pd.DataFrame) -> None:
         body = "# Data Quality Report\n\nNo data quality issues recorded.\n"
     else:
         ordered = dq.sort_values(["severity", "issue_count"], ascending=[True, False])
-        table = dataframe_to_markdown(ordered[["severity", "layer_name", "table_name", "rule_name", "issue_count", "sample_values"]])
+        table = dataframe_to_markdown(ordered[["status", "severity", "layer_name", "table_name", "rule_name", "issue_count", "sample_values"]])
+        pass_count = int(ordered["status"].eq("PASS").sum())
+        warn_count = int(ordered["status"].eq("WARN").sum())
+        fail_count = int(ordered["status"].eq("FAIL").sum())
+        info_count_rows = int(ordered["status"].eq("INFO").sum())
         warning_count = int(ordered[ordered["severity"].ne("Info")]["issue_count"].sum())
         info_count = int(ordered[ordered["severity"].eq("Info")]["issue_count"].sum())
         body = f"""# Data Quality Report
@@ -176,6 +191,10 @@ def write_quality_markdown(dq: pd.DataFrame) -> None:
 | Metric | Value |
 |---|---:|
 | Total records in issue table | {len(ordered):,} |
+| PASS rules | {pass_count:,} |
+| WARN rules | {warn_count:,} |
+| FAIL rules | {fail_count:,} |
+| INFO rules | {info_count_rows:,} |
 | Warning issue count | {warning_count:,} |
 | Informational count | {info_count:,} |
 
@@ -194,8 +213,8 @@ def write_quality_markdown(dq: pd.DataFrame) -> None:
 def get_report_path():
     from pipeline_utils import ROOT_DIR
 
-    report_dir = ROOT_DIR / "reports"
-    report_dir.mkdir(exist_ok=True)
+    report_dir = ROOT_DIR / "reports" / "data_quality"
+    report_dir.mkdir(parents=True, exist_ok=True)
     return report_dir / "data_quality_report.md"
 
 
@@ -222,7 +241,7 @@ def main() -> None:
     if dq.empty:
         print("No data quality issues recorded.")
     else:
-        print(dq[["table_name", "rule_name", "issue_count"]].sort_values("issue_count", ascending=False).to_string(index=False))
+        print(dq[["status", "table_name", "rule_name", "issue_count"]].sort_values(["status", "issue_count"], ascending=[True, False]).to_string(index=False))
 
 
 if __name__ == "__main__":

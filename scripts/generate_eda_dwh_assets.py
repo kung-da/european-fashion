@@ -10,6 +10,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 RAW_DIR = ROOT / "data" / "raw"
 REPORT_DIR = ROOT / "reports"
+EDA_REPORT_DIR = REPORT_DIR / "eda"
 NOTEBOOK_DIR = ROOT / "notebooks"
 
 FILES = {
@@ -338,7 +339,7 @@ if not (ROOT / "data" / "raw").exists() and (ROOT.parent / "data" / "raw").exist
     ROOT = ROOT.parent
 
 RAW_DIR = ROOT / "data" / "raw"
-REPORT_DIR = ROOT / "reports"
+REPORT_DIR = ROOT / "reports" / "eda"
 REPORT_DIR.mkdir(exist_ok=True)
 """
     )
@@ -758,6 +759,7 @@ excel_path
 
 def write_outputs() -> None:
     REPORT_DIR.mkdir(exist_ok=True)
+    EDA_REPORT_DIR.mkdir(parents=True, exist_ok=True)
     NOTEBOOK_DIR.mkdir(exist_ok=True)
     tables = load_tables()
     outputs = {
@@ -773,7 +775,7 @@ def write_outputs() -> None:
         "fact_readiness": fact_readiness(),
         "dashboard_readiness": dashboard_readiness(),
     }
-    with pd.ExcelWriter(REPORT_DIR / "fashion_store_eda_dwh_results.xlsx", engine="openpyxl") as writer:
+    with pd.ExcelWriter(EDA_REPORT_DIR / "fashion_store_eda_dwh_results.xlsx", engine="openpyxl") as writer:
         for sheet, df in outputs.items():
             df.to_excel(writer, sheet_name=sheet[:31], index=False)
 
@@ -813,7 +815,7 @@ Dataset is ready for Star Schema after staging validation and reconciliation.
 - Inventory Monitoring: ready with generated `snapshot_date_key`.
 - Channel & Campaign Analytics: partially ready because campaign mapping is sparse.
 """
-    (REPORT_DIR / "fashion_store_eda_dwh_summary.md").write_text(summary, encoding="utf-8")
+    (EDA_REPORT_DIR / "fashion_store_eda_dwh_summary.md").write_text(summary, encoding="utf-8")
     write_notebook()
 
 

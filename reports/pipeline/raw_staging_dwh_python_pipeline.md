@@ -154,4 +154,13 @@ Data quality issues nổi bật:
 |---|---|---:|
 | `fact_sales` | `unmapped campaign_key allowed by design` | 2,170 |
 
+Data quality audit hiện ghi cả rule pass:
+
+| Status | Rules | Issue Count |
+|---|---:|---:|
+| `PASS` | 115 | 0 |
+| `INFO` | 1 | 2,170 |
+| `WARN` | 0 | 0 |
+| `FAIL` | 0 | 0 |
+
 Ghi chú: `campaign_key` null là thông tin theo dõi, không phải lỗi hard-fail, vì nhiều dòng sales item không map được sang campaign theo `channel_campaigns` và campaign date range.

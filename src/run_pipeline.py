@@ -38,7 +38,7 @@ def run(skip_raw: bool = False, skip_dq: bool = False) -> None:
         if dq.empty:
             print("  No issues recorded.")
         else:
-            print(dq[["table_name", "rule_name", "issue_count"]].sort_values("issue_count", ascending=False).head(20).to_string(index=False))
+            print(dq[["status", "table_name", "rule_name", "issue_count"]].sort_values(["status", "issue_count"], ascending=[True, False]).head(25).to_string(index=False))
     print("\nPipeline completed.")
 
 
