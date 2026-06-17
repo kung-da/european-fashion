@@ -1,207 +1,216 @@
 # Fashion Store Analytics
 
-Project phân tích dữ liệu bán hàng thời trang từ Kaggle dataset **European Fashion Store Multitable Dataset**.
+Project phan tich du lieu ban hang thoi trang tu dataset **European Fashion Store Multitable Dataset**. Project dung PostgreSQL lam kho luu tru `raw`, `staging`, `dwh`, `mart`; Python/pandas xu ly EDA, staging, DWH va data quality.
 
-Stack giai đoạn đầu:
+## 1. Kien Truc
 
-- PostgreSQL: lưu dữ liệu `raw`, `staging`, `dwh`, `mart`
-- pgAdmin: quản trị database bằng giao diện web
-- Jupyter Notebook: EDA, load CSV, phân tích dữ liệu bằng Python
-- Python: `pandas`, `sqlalchemy`, `psycopg2`, visualization libraries
+```text
+CSV files
+  -> raw PostgreSQL tables
+  -> staging PostgreSQL tables
+  -> dwh Star Schema
+  -> BI / dashboard queries
+```
 
-## Folder Structure
+Ly do dung Python:
+
+- Dataset nho, chua can Spark.
+- pandas du tot de cast kieu du lieu, validate, lookup surrogate key va tinh measures.
+- De chay tren Windows bang Docker Desktop.
+- De doc va phu hop cho project Data Analyst/Data Engineer.
+
+## 2. Cau Truc Thu Muc
 
 ```text
 .
-├── data
-│   ├── raw
-│   └── processed
-├── notebooks
-│   └── 01_postgres_connection_example.ipynb
-├── reports
-├── sql
-│   ├── init
-│   │   └── 01_create_schemas.sql
-│   ├── staging
-│   ├── dwh
-│   └── mart
-├── src
-├── .env
-├── Dockerfile
-├── docker-compose.yml
-├── README.md
-└── requirements.txt
+|-- data
+|   `-- raw
+|-- notebooks
+|   |-- 01_postgres_connection_example.ipynb
+|   `-- 02_eda_dwh_readiness.ipynb
+|-- reports
+|   |-- data_quality_report.md
+|   |-- fashion_store_dwh_design.md
+|   |-- fashion_store_eda_dwh_results.xlsx
+|   |-- fashion_store_eda_dwh_results_from_notebook.xlsx
+|   |-- fashion_store_eda_dwh_summary.md
+|   |-- project_structure.md
+|   `-- raw_staging_dwh_python_pipeline.md
+|-- scripts
+|   `-- generate_eda_dwh_assets.py
+|-- sql
+|   `-- init
+|       `-- 01_create_schemas.sql
+|-- src
+|   |-- build_dwh.py
+|   |-- build_staging.py
+|   |-- load_raw_csv.py
+|   |-- pipeline_utils.py
+|   |-- run_data_quality.py
+|   `-- run_pipeline.py
+|-- .env
+|-- docker-compose.yml
+|-- Dockerfile
+|-- README.md
+`-- requirements.txt
 ```
 
-## Giải Thích Docker Compose
+## 3. Docker Services
 
 `postgres`
 
-- Chạy PostgreSQL 16.
-- Tạo database `fashion_dw`.
-- User/password mặc định: `postgres/postgres`.
-- Mount `./data` vào container tại `/data` để có thể import CSV.
-- Mount `./sql/init` vào `/docker-entrypoint-initdb.d` để tự tạo schema khi database khởi tạo lần đầu.
+- PostgreSQL 16.
+- Database: `fashion_dw`.
+- User/password: `postgres/postgres`.
+- Port: `5432`.
 
 `pgadmin`
 
-- Chạy pgAdmin 4.
-- Truy cập tại `http://localhost:5050`.
-- Dùng để xem schema, table, query dữ liệu PostgreSQL.
+- URL: `http://localhost:5050`.
+- Email/password: `admin@admin.com/admin`.
 
 `jupyter`
 
-- Build từ `Dockerfile`.
-- Cài thư viện từ `requirements.txt`.
-- Mount toàn bộ project vào `/app`.
-- Truy cập tại `http://localhost:8888`.
-- Kết nối PostgreSQL bằng hostname service `postgres`.
-- Database URL trong container:
+- URL: `http://localhost:8888`.
+- Mount toan bo project vao `/app`.
+- Ket noi PostgreSQL bang hostname Docker: `postgres`.
 
-```text
-postgresql+psycopg2://postgres:postgres@postgres:5432/fashion_dw
-```
-
-## Cài Đặt
-
-1. Cài Docker Desktop cho Windows.
-2. Mở Docker Desktop và đảm bảo Docker Engine đang chạy.
-3. Mở terminal tại thư mục project.
-
-## Chạy Project
+## 4. Chay Docker
 
 ```bash
 docker compose up -d --build
 ```
 
-Kiểm tra container:
+Kiem tra container:
 
 ```bash
 docker compose ps
 ```
 
-Xem log nếu cần:
+Test PostgreSQL:
 
 ```bash
-docker compose logs -f postgres
-docker compose logs -f jupyter
+docker exec fashion_postgres psql -U postgres -d fashion_dw -c "SELECT current_database(), current_user;"
 ```
 
-## Truy Cập pgAdmin
+## 5. Chay Pipeline Python
 
-Mở trình duyệt:
+Chay toan bo pipeline:
 
-```text
-http://localhost:5050
+```bash
+docker exec fashion_jupyter python src/run_pipeline.py
 ```
 
-Đăng nhập:
+Chay tung buoc:
 
-```text
-Email: admin@admin.com
-Password: admin
+```bash
+docker exec fashion_jupyter python src/load_raw_csv.py
+docker exec fashion_jupyter python src/build_staging.py
+docker exec fashion_jupyter python src/build_dwh.py
+docker exec fashion_jupyter python src/run_data_quality.py
 ```
 
-Tạo server mới trong pgAdmin:
+Bo qua raw load neu muon giu raw hien tai:
 
-- Click **Add New Server**
-- Tab **General**
-  - Name: `Fashion PostgreSQL`
-- Tab **Connection**
-  - Host name/address: `postgres`
-  - Port: `5432`
-  - Maintenance database: `fashion_dw`
-  - Username: `postgres`
-  - Password: `postgres`
-- Click **Save**
-
-## Truy Cập Jupyter Notebook
-
-Mở trình duyệt:
-
-```text
-http://localhost:8888
+```bash
+docker exec fashion_jupyter python src/run_pipeline.py --skip-raw
 ```
 
-Notebook mẫu:
+## 6. Chay EDA
 
-```text
-notebooks/01_postgres_connection_example.ipynb
+Sinh lai notebook/report EDA:
+
+```bash
+docker exec fashion_jupyter python scripts/generate_eda_dwh_assets.py
 ```
 
-Ví dụ code kết nối PostgreSQL trong Jupyter:
+Chay notebook EDA:
 
-```python
-import pandas as pd
-from sqlalchemy import create_engine, text
-
-DATABASE_URL = "postgresql+psycopg2://postgres:postgres@postgres:5432/fashion_dw"
-engine = create_engine(DATABASE_URL)
-
-with engine.connect() as conn:
-    result = conn.execute(text("SELECT current_database(), current_user;"))
-    print(result.fetchone())
-
-schemas = pd.read_sql(
-    """
-    SELECT schema_name
-    FROM information_schema.schemata
-    WHERE schema_name IN ('raw', 'staging', 'dwh', 'mart')
-    ORDER BY schema_name;
-    """,
-    engine,
-)
-
-schemas
+```bash
+docker exec fashion_jupyter jupyter nbconvert --to notebook --execute --inplace notebooks/02_eda_dwh_readiness.ipynb
 ```
 
-## Chuẩn Bị Dữ Liệu CSV
+Output EDA:
 
-Đặt các file CSV từ Kaggle vào:
+- `reports/fashion_store_eda_dwh_results.xlsx`
+- `reports/fashion_store_eda_dwh_results_from_notebook.xlsx`
+- `reports/fashion_store_eda_dwh_summary.md`
 
-```text
-data/raw
+## 7. Bang Du Lieu
+
+Raw:
+
+- `raw.customers`
+- `raw.products`
+- `raw.sales`
+- `raw.salesitems`
+- `raw.stock`
+- `raw.campaigns`
+- `raw.channels`
+
+Staging:
+
+- `staging.stg_customers`
+- `staging.stg_products`
+- `staging.stg_sales`
+- `staging.stg_salesitems`
+- `staging.stg_stock`
+- `staging.stg_campaigns`
+- `staging.stg_channels`
+- `staging.data_quality_issues`
+
+DWH:
+
+- `dwh.dim_date`
+- `dwh.dim_geography`
+- `dwh.dim_channel`
+- `dwh.dim_customer`
+- `dwh.dim_product`
+- `dwh.dim_campaign`
+- `dwh.fact_order`
+- `dwh.fact_sales`
+- `dwh.fact_inventory`
+- `dwh.fact_customer_activity`
+
+## 8. Test Sau Khi Load
+
+Row count DWH:
+
+```bash
+docker exec fashion_postgres psql -U postgres -d fashion_dw -c "SELECT 'dim_customer' AS table_name, COUNT(*) FROM dwh.dim_customer UNION ALL SELECT 'dim_product', COUNT(*) FROM dwh.dim_product UNION ALL SELECT 'fact_order', COUNT(*) FROM dwh.fact_order UNION ALL SELECT 'fact_sales', COUNT(*) FROM dwh.fact_sales UNION ALL SELECT 'fact_inventory', COUNT(*) FROM dwh.fact_inventory;"
 ```
 
-Ví dụ:
+KPI revenue/orders/AOV:
 
-```text
-data/raw/customers.csv
-data/raw/sales.csv
-data/raw/sales_items.csv
-data/raw/products.csv
-data/raw/stock.csv
-data/raw/campaigns.csv
-data/raw/channels.csv
+```bash
+docker exec fashion_postgres psql -U postgres -d fashion_dw -c "SELECT SUM(total_amount) AS revenue, SUM(order_count) AS orders, SUM(total_amount) / NULLIF(SUM(order_count), 0) AS aov FROM dwh.fact_order;"
 ```
 
-## Stop Container
+Data quality:
+
+```bash
+docker exec fashion_postgres psql -U postgres -d fashion_dw -c "SELECT severity, table_name, rule_name, issue_count FROM staging.data_quality_issues ORDER BY severity, issue_count DESC;"
+```
+
+## 9. Bao Cao
+
+- DWH design: `reports/fashion_store_dwh_design.md`
+- EDA summary: `reports/fashion_store_eda_dwh_summary.md`
+- Pipeline summary: `reports/raw_staging_dwh_python_pipeline.md`
+- Data quality report: `reports/data_quality_report.md`
+
+## 10. Stop / Reset
+
+Stop container:
 
 ```bash
 docker compose down
 ```
 
-## Reset Volume PostgreSQL
-
-Khi muốn xóa toàn bộ dữ liệu PostgreSQL và chạy lại init SQL từ đầu:
+Reset database volume:
 
 ```bash
 docker compose down -v
 docker compose up -d --build
-```
-
-Lưu ý: lệnh `down -v` sẽ xóa volume database.
-
-## Test Kết Nối PostgreSQL Bằng Terminal
-
-Test từ container PostgreSQL:
-
-```bash
-docker exec -it fashion_postgres psql -U postgres -d fashion_dw -c "SELECT current_database(), current_user;"
-```
-
-Test schema đã được tạo:
-
-```bash
-docker exec -it fashion_postgres psql -U postgres -d fashion_dw -c "\dn"
+docker exec fashion_jupyter python src/run_pipeline.py
 ```
