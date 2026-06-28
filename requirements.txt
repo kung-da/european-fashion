@@ -9,3 +9,6 @@ jupyter
 notebook
 python-dotenv
 openpyxl
+scikit-learn
+lightgbm
+xgboost
