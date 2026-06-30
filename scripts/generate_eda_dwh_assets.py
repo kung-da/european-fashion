@@ -198,7 +198,6 @@ def fact_sales_measures(tables: dict[str, pd.DataFrame]) -> pd.DataFrame:
     df["discount_percent_num"] = parse_percent(df["discount_percent"])
     df["gross_amount"] = df["quantity"] * df["original_price"]
     df["net_amount"] = df["item_total"]
-    df["calculated_net_amount"] = df["quantity"] * df["unit_price"]
     df["discount_amount"] = df["gross_amount"] - df["net_amount"]
     df["cost_amount"] = df["quantity"] * df["cost_price"]
     df["gross_profit"] = df["net_amount"] - df["cost_amount"]
@@ -623,7 +622,6 @@ for col in ["quantity", "original_price", "unit_price", "discount_applied", "ite
 fact_sales_preview["discount_percent_num"] = parse_percent(fact_sales_preview["discount_percent"])
 fact_sales_preview["gross_amount"] = fact_sales_preview["quantity"] * fact_sales_preview["original_price"]
 fact_sales_preview["net_amount"] = fact_sales_preview["item_total"]
-fact_sales_preview["calculated_net_amount"] = fact_sales_preview["quantity"] * fact_sales_preview["unit_price"]
 fact_sales_preview["discount_amount"] = fact_sales_preview["gross_amount"] - fact_sales_preview["net_amount"]
 fact_sales_preview["cost_amount"] = fact_sales_preview["quantity"] * fact_sales_preview["cost_price"]
 fact_sales_preview["gross_profit"] = fact_sales_preview["net_amount"] - fact_sales_preview["cost_amount"]

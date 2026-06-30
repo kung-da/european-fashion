@@ -177,7 +177,6 @@ def build_fact_sales(stg: dict[str, pd.DataFrame], dims: dict[str, pd.DataFrame]
     f["sale_date_key"] = yyyymmdd(f["sale_date"])
     f["gross_amount"] = f["quantity"].astype(float) * f["original_price"].astype(float)
     f["net_amount"] = f["item_total"].astype(float)
-    f["calculated_net_amount"] = f["quantity"].astype(float) * f["unit_price"].astype(float)
     f["discount_amount"] = f["gross_amount"] - f["net_amount"]
     f["cost_amount"] = f["quantity"].astype(float) * f["cost_price"].astype(float)
     f["gross_profit"] = f["net_amount"] - f["cost_amount"]
@@ -197,7 +196,6 @@ def build_fact_sales(stg: dict[str, pd.DataFrame], dims: dict[str, pd.DataFrame]
             "unit_price",
             "gross_amount",
             "net_amount",
-            "calculated_net_amount",
             "discount_amount",
             "discount_percent",
             "cost_amount",
