@@ -122,7 +122,6 @@ def build_dim_campaign(stg: dict[str, pd.DataFrame], dims: dict[str, pd.DataFram
             "campaign_id",
             "campaign_name",
             "channel_key",
-            "channel_name",
             "start_date",
             "end_date",
             "start_date_key",
@@ -170,7 +169,10 @@ def build_fact_sales(stg: dict[str, pd.DataFrame], dims: dict[str, pd.DataFrame]
     f = f.merge(dims["dim_customer"][["customer_key", "customer_id"]], on="customer_id", how="inner")
     f = f.merge(dims["dim_product"][["product_key", "product_id", "cost_price"]], on="product_id", how="inner")
     f = f.merge(dims["dim_channel"][["channel_key", "channel_name"]], left_on="channel", right_on="channel_name", how="inner")
-    f["campaign_key"] = f.apply(lambda r: map_campaign(r, dims["dim_campaign"]), axis=1).astype("Int64")
+    
+    # Merge dim_campaign with dim_channel to provide channel_name to map_campaign
+    c_df = dims["dim_campaign"].merge(dims["dim_channel"][["channel_key", "channel_name"]], on="channel_key", how="left")
+    f["campaign_key"] = f.apply(lambda r: map_campaign(r, c_df), axis=1).astype("Int64")
     f["sales_key"] = range(1, len(f) + 1)
     f["sale_date_key"] = yyyymmdd(f["sale_date"])
     f["gross_amount"] = f["quantity"].astype(float) * f["original_price"].astype(float)

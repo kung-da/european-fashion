@@ -187,7 +187,7 @@ Ghi chú: file `channels` chỉ có `E-commerce`, `App Mobile`, trong khi campai
 | SCD | Type 1 |
 | Nguồn | `campaigns`, `salesitems.channel_campaigns` |
 
-Thuộc tính: `campaign_id`, `campaign_name`, `start_date`, `end_date`, `channel_name`, `discount_type`, `discount_value`, `discount_percent_value`, `discount_amount_value`.
+Thuộc tính: `campaign_id`, `campaign_name`, `channel_key`, `start_date`, `end_date`, `discount_type`, `discount_value`, `discount_percent_value`, `discount_amount_value`.
 
 Ghi chú: `salesitems.channel_campaigns` đôi khi chứa tên kênh như `App Mobile`, đôi khi chứa campaign/channel marketing như `Website Banner`. Cần mapping mềm theo tên campaign hoặc channel trong khoảng ngày.
 
@@ -351,7 +351,6 @@ CREATE TABLE IF NOT EXISTS dwh.dim_campaign (
     campaign_id INTEGER,
     campaign_name VARCHAR(255) NOT NULL,
     channel_key BIGINT REFERENCES dwh.dim_channel(channel_key),
-    channel_name VARCHAR(100),
     start_date DATE,
     end_date DATE,
     start_date_key INTEGER REFERENCES dwh.dim_date(date_key),
@@ -470,7 +469,7 @@ CREATE INDEX IF NOT EXISTS idx_fact_customer_activity_customer ON dwh.fact_custo
 | campaigns | `campaign_id` | `dim_campaign` | `campaign_id` | Cast integer | Check duplicate |
 | campaigns | `campaign_name` | `dim_campaign` | `campaign_name` | Trim | Natural name để mapping |
 | campaigns | `start_date`, `end_date` | `dim_campaign` | `start_date_key`, `end_date_key` | Parse date, tạo key | Check start <= end |
-| campaigns | `channel` | `dim_channel`/`dim_campaign` | `channel_key`, `channel_name` | Lookup channel | Nếu không có thì insert dim_channel |
+| campaigns | `channel` | `dim_channel`/`dim_campaign` | `channel_key` | Lookup channel | Nếu không có thì insert dim_channel |
 | campaigns | `discount_type` | `dim_campaign` | `discount_type` | Trim | Chỉ nhận `Percentage`, `Fixed` |
 | campaigns | `discount_value` | `dim_campaign` | `discount_percent_value`, `discount_amount_value` | Nếu có `%` thì parse percent; nếu fixed thì amount | Lưu raw để audit |
 | sales | `sale_id` | `fact_order` | `sale_id` | Cast integer | Degenerate dimension |

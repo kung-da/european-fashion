@@ -60,7 +60,6 @@ def run_checks():
         JOIN dwh.dim_customer c ON fs.customer_key = c.customer_key
         JOIN dwh.dim_product p ON fs.product_key = p.product_key
         JOIN dwh.dim_customer c2 ON fs.customer_key = c2.customer_key
-        JOIN dwh.dim_geography g ON c2.geography_key = g.geography_key
         JOIN dwh.dim_channel ch ON fs.channel_key = ch.channel_key
         LEFT JOIN dwh.dim_campaign cam ON fs.campaign_key = cam.campaign_key
         """
