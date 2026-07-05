@@ -4,8 +4,8 @@
 
 | Metric | Value |
 |---|---:|
-| Total records in issue table | 116 |
-| PASS rules | 115 |
+| Total records in issue table | 113 |
+| PASS rules | 112 |
 | WARN rules | 0 |
 | FAIL rules | 0 |
 | INFO rules | 1 |
@@ -111,19 +111,16 @@
 | PASS   | Warning  | dwh        | fact_order             | row count equals valid stg_sales         | 0           | expected=905, actual=905   |
 | PASS   | Warning  | dwh        | fact_order             | FK null: sale_date_key                   | 0           |                            |
 | PASS   | Warning  | dwh        | fact_order             | FK null: customer_key                    | 0           |                            |
-| PASS   | Warning  | dwh        | fact_order             | FK null: geography_key                   | 0           |                            |
 | PASS   | Warning  | dwh        | fact_order             | FK null: channel_key                     | 0           |                            |
 | PASS   | Warning  | dwh        | fact_sales             | FK null: sale_date_key                   | 0           |                            |
 | PASS   | Warning  | dwh        | fact_sales             | FK null: customer_key                    | 0           |                            |
 | PASS   | Warning  | dwh        | fact_sales             | FK null: product_key                     | 0           |                            |
-| PASS   | Warning  | dwh        | fact_sales             | FK null: geography_key                   | 0           |                            |
 | PASS   | Warning  | dwh        | fact_sales             | FK null: channel_key                     | 0           |                            |
 | PASS   | Warning  | dwh        | fact_inventory         | FK null: snapshot_date_key               | 0           |                            |
 | PASS   | Warning  | dwh        | fact_inventory         | FK null: product_key                     | 0           |                            |
 | PASS   | Warning  | dwh        | fact_inventory         | FK null: geography_key                   | 0           |                            |
 | PASS   | Warning  | dwh        | fact_customer_activity | FK null: activity_date_key               | 0           |                            |
 | PASS   | Warning  | dwh        | fact_customer_activity | FK null: customer_key                    | 0           |                            |
-| PASS   | Warning  | dwh        | fact_customer_activity | FK null: geography_key                   | 0           |                            |
 | PASS   | Warning  | dwh        | fact_order             | negative measure: total_amount           | 0           |                            |
 | PASS   | Warning  | dwh        | fact_order             | negative measure: order_count            | 0           |                            |
 | PASS   | Warning  | dwh        | fact_sales             | negative measure: quantity               | 0           |                            |

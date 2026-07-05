@@ -94,13 +94,11 @@ erDiagram
     DIM_DATE ||--o{ FACT_SALES : sale_date_key
     DIM_CUSTOMER ||--o{ FACT_SALES : customer_key
     DIM_PRODUCT ||--o{ FACT_SALES : product_key
-    DIM_GEOGRAPHY ||--o{ FACT_SALES : geography_key
     DIM_CHANNEL ||--o{ FACT_SALES : channel_key
     DIM_CAMPAIGN ||--o{ FACT_SALES : campaign_key
 
     DIM_DATE ||--o{ FACT_ORDER : sale_date_key
     DIM_CUSTOMER ||--o{ FACT_ORDER : customer_key
-    DIM_GEOGRAPHY ||--o{ FACT_ORDER : geography_key
     DIM_CHANNEL ||--o{ FACT_ORDER : channel_key
 
     DIM_DATE ||--o{ FACT_INVENTORY : snapshot_date_key
@@ -109,7 +107,6 @@ erDiagram
 
     DIM_DATE ||--o{ FACT_CUSTOMER_ACTIVITY : activity_date_key
     DIM_CUSTOMER ||--o{ FACT_CUSTOMER_ACTIVITY : customer_key
-    DIM_GEOGRAPHY ||--o{ FACT_CUSTOMER_ACTIVITY : geography_key
 ```
 
 ## 4. Dimension Tables
@@ -138,7 +135,7 @@ Thuộc tính: `full_date`, `day_of_week`, `day_name`, `day_of_month`, `week_of_
 | SCD | Type 2 nếu theo dõi thay đổi `country`, `age_range`; Type 1 đủ cho project ban đầu |
 | Nguồn | `dataset_fashion_store_customers.csv` |
 
-Thuộc tính: `customer_id`, `country`, `age_range`, `signup_date`, `signup_date_key`, `effective_from`, `effective_to`, `is_current`.
+Thuộc tính: `customer_id`, `age_range`, `signup_date`, `signup_date_key`, `effective_from`, `effective_to`, `is_current`.
 
 ### 4.3. `dim_product`
 
@@ -205,7 +202,7 @@ Ghi chú: `salesitems.channel_campaigns` đôi khi chứa tên kênh như `App M
 | Nguồn | `salesitems` kết hợp `sales` |
 | Degenerate dimensions | `sale_id`, `item_id` |
 
-Foreign keys: `sale_date_key`, `customer_key`, `product_key`, `geography_key`, `channel_key`, `campaign_key`.
+Foreign keys: `sale_date_key`, `customer_key`, `product_key`, `channel_key`, `campaign_key`.
 
 Measures:
 
@@ -231,7 +228,7 @@ Measures:
 | Nguồn | `sales` |
 | Degenerate dimension | `sale_id` |
 
-Foreign keys: `sale_date_key`, `customer_key`, `geography_key`, `channel_key`.
+Foreign keys: `sale_date_key`, `customer_key`, `channel_key`.
 
 Measures:
 
@@ -310,7 +307,6 @@ CREATE TABLE IF NOT EXISTS dwh.dim_customer (
     customer_key BIGSERIAL PRIMARY KEY,
     customer_id INTEGER NOT NULL,
     geography_key BIGINT REFERENCES dwh.dim_geography(geography_key),
-    country VARCHAR(100),
     age_range VARCHAR(20),
     signup_date DATE,
     signup_date_key INTEGER REFERENCES dwh.dim_date(date_key),
@@ -374,7 +370,6 @@ CREATE TABLE IF NOT EXISTS dwh.fact_order (
     sale_id INTEGER NOT NULL UNIQUE,
     sale_date_key INTEGER NOT NULL REFERENCES dwh.dim_date(date_key),
     customer_key BIGINT NOT NULL REFERENCES dwh.dim_customer(customer_key),
-    geography_key BIGINT NOT NULL REFERENCES dwh.dim_geography(geography_key),
     channel_key BIGINT NOT NULL REFERENCES dwh.dim_channel(channel_key),
     order_count INTEGER NOT NULL DEFAULT 1,
     line_item_count INTEGER,
@@ -390,7 +385,6 @@ CREATE TABLE IF NOT EXISTS dwh.fact_sales (
     sale_date_key INTEGER NOT NULL REFERENCES dwh.dim_date(date_key),
     customer_key BIGINT NOT NULL REFERENCES dwh.dim_customer(customer_key),
     product_key BIGINT NOT NULL REFERENCES dwh.dim_product(product_key),
-    geography_key BIGINT NOT NULL REFERENCES dwh.dim_geography(geography_key),
     channel_key BIGINT NOT NULL REFERENCES dwh.dim_channel(channel_key),
     campaign_key BIGINT REFERENCES dwh.dim_campaign(campaign_key),
     quantity INTEGER NOT NULL,
@@ -422,7 +416,6 @@ CREATE TABLE IF NOT EXISTS dwh.fact_customer_activity (
     customer_activity_key BIGSERIAL PRIMARY KEY,
     activity_date_key INTEGER NOT NULL REFERENCES dwh.dim_date(date_key),
     customer_key BIGINT NOT NULL REFERENCES dwh.dim_customer(customer_key),
-    geography_key BIGINT REFERENCES dwh.dim_geography(geography_key),
     signup_count INTEGER NOT NULL DEFAULT 0,
     order_count INTEGER NOT NULL DEFAULT 0,
     revenue_amount NUMERIC(14,2) NOT NULL DEFAULT 0,
@@ -443,7 +436,6 @@ CREATE INDEX IF NOT EXISTS idx_fact_order_channel ON dwh.fact_order(channel_key)
 CREATE INDEX IF NOT EXISTS idx_fact_sales_date ON dwh.fact_sales(sale_date_key);
 CREATE INDEX IF NOT EXISTS idx_fact_sales_customer ON dwh.fact_sales(customer_key);
 CREATE INDEX IF NOT EXISTS idx_fact_sales_product ON dwh.fact_sales(product_key);
-CREATE INDEX IF NOT EXISTS idx_fact_sales_geo ON dwh.fact_sales(geography_key);
 CREATE INDEX IF NOT EXISTS idx_fact_sales_channel ON dwh.fact_sales(channel_key);
 CREATE INDEX IF NOT EXISTS idx_fact_sales_campaign ON dwh.fact_sales(campaign_key);
 CREATE INDEX IF NOT EXISTS idx_fact_sales_sale_id ON dwh.fact_sales(sale_id);
@@ -462,7 +454,6 @@ CREATE INDEX IF NOT EXISTS idx_fact_customer_activity_customer ON dwh.fact_custo
 |---|---|---|---|---|---|
 | customers | `customer_id` | `dim_customer` | `customer_id` | Cast integer | Check null, duplicate |
 | customers | `country` | `dim_geography` | `country` | Trim, title case | Chuẩn hóa tên quốc gia |
-| customers | `country` | `dim_customer` | `country` | Copy từ nguồn | Có thể giữ denormalized để tiện BI |
 | customers | `age_range` | `dim_customer` | `age_range` | Trim | Nếu null gán `Unknown` |
 | customers | `signup_date` | `dim_customer` | `signup_date`, `signup_date_key` | Parse date, tạo key `YYYYMMDD` | Loại ngày sai format |
 | products | `product_id` | `dim_product` | `product_id` | Cast integer | Check duplicate |
@@ -485,7 +476,6 @@ CREATE INDEX IF NOT EXISTS idx_fact_customer_activity_customer ON dwh.fact_custo
 | sales | `sale_id` | `fact_order` | `sale_id` | Cast integer | Degenerate dimension |
 | sales | `sale_date` | `fact_order` | `sale_date_key` | Parse date, lookup dim_date | Check trong range hợp lệ |
 | sales | `customer_id` | `fact_order` | `customer_key` | Lookup dim_customer current | Reject/quarantine nếu không match |
-| sales | `country` | `fact_order` | `geography_key` | Lookup dim_geography | So sánh với customer country |
 | sales | `channel` | `fact_order` | `channel_key` | Lookup dim_channel | Insert unknown nếu thiếu |
 | sales | `discounted` | `fact_order` | `is_discounted` | `1/0` sang boolean | Validate chỉ 0 hoặc 1 |
 | sales | `total_amount` | `fact_order` | `total_amount` | Cast numeric | Không âm |

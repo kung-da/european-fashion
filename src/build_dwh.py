@@ -96,7 +96,7 @@ def build_dim_customer(stg: dict[str, pd.DataFrame], dims: dict[str, pd.DataFram
     c["effective_from"] = date(1900, 1, 1)
     c["effective_to"] = date(9999, 12, 31)
     c["is_current"] = True
-    return c[["customer_key", "customer_id", "geography_key", "country", "age_range", "signup_date", "signup_date_key", "effective_from", "effective_to", "is_current"]]
+    return c[["customer_key", "customer_id", "geography_key", "age_range", "signup_date", "signup_date_key", "effective_from", "effective_to", "is_current"]]
 
 
 def build_dim_product(stg: dict[str, pd.DataFrame]) -> pd.DataFrame:
@@ -140,13 +140,12 @@ def build_fact_order(stg: dict[str, pd.DataFrame], dims: dict[str, pd.DataFrame]
     line_counts = valid(stg["stg_salesitems"]).groupby("sale_id").size().rename("line_item_count").reset_index()
     f = s.merge(line_counts, on="sale_id", how="left")
     f = f.merge(dims["dim_customer"][["customer_key", "customer_id"]], on="customer_id", how="inner")
-    f = f.merge(dims["dim_geography"][["geography_key", "country"]], on="country", how="inner")
     f = f.merge(dims["dim_channel"][["channel_key", "channel_name"]], left_on="channel", right_on="channel_name", how="inner")
     f["order_key"] = range(1, len(f) + 1)
     f["sale_date_key"] = yyyymmdd(f["sale_date"])
     f["order_count"] = 1
     f["line_item_count"] = f["line_item_count"].fillna(0).astype(int)
-    return f[["order_key", "sale_id", "sale_date_key", "customer_key", "geography_key", "channel_key", "order_count", "line_item_count", "total_amount", "is_discounted"]]
+    return f[["order_key", "sale_id", "sale_date_key", "customer_key", "channel_key", "order_count", "line_item_count", "total_amount", "is_discounted"]]
 
 
 def map_campaign(row: pd.Series, campaigns: pd.DataFrame):
@@ -166,11 +165,10 @@ def map_campaign(row: pd.Series, campaigns: pd.DataFrame):
 
 def build_fact_sales(stg: dict[str, pd.DataFrame], dims: dict[str, pd.DataFrame]) -> pd.DataFrame:
     si = valid(stg["stg_salesitems"]).copy()
-    s = valid(stg["stg_sales"])[["sale_id", "customer_id", "country"]]
+    s = valid(stg["stg_sales"])[["sale_id", "customer_id"]]
     f = si.merge(s, on="sale_id", how="inner")
     f = f.merge(dims["dim_customer"][["customer_key", "customer_id"]], on="customer_id", how="inner")
     f = f.merge(dims["dim_product"][["product_key", "product_id", "cost_price"]], on="product_id", how="inner")
-    f = f.merge(dims["dim_geography"][["geography_key", "country"]], on="country", how="inner")
     f = f.merge(dims["dim_channel"][["channel_key", "channel_name"]], left_on="channel", right_on="channel_name", how="inner")
     f["campaign_key"] = f.apply(lambda r: map_campaign(r, dims["dim_campaign"]), axis=1).astype("Int64")
     f["sales_key"] = range(1, len(f) + 1)
@@ -188,7 +186,6 @@ def build_fact_sales(stg: dict[str, pd.DataFrame], dims: dict[str, pd.DataFrame]
             "sale_date_key",
             "customer_key",
             "product_key",
-            "geography_key",
             "channel_key",
             "campaign_key",
             "quantity",
@@ -227,10 +224,10 @@ def build_fact_customer_activity(stg: dict[str, pd.DataFrame], dims: dict[str, p
     sales["signup_count"] = 0
     activity = pd.concat([signup, sales], ignore_index=True)
     activity = activity.groupby(["customer_id", "activity_date"], as_index=False).agg(signup_count=("signup_count", "sum"), order_count=("order_count", "sum"), revenue_amount=("revenue_amount", "sum"))
-    activity = activity.merge(dims["dim_customer"][["customer_key", "customer_id", "geography_key"]], on="customer_id", how="inner")
+    activity = activity.merge(dims["dim_customer"][["customer_key", "customer_id"]], on="customer_id", how="inner")
     activity["customer_activity_key"] = range(1, len(activity) + 1)
     activity["activity_date_key"] = yyyymmdd(activity["activity_date"])
-    return activity[["customer_activity_key", "activity_date_key", "customer_key", "geography_key", "signup_count", "order_count", "revenue_amount"]]
+    return activity[["customer_activity_key", "activity_date_key", "customer_key", "signup_count", "order_count", "revenue_amount"]]
 
 
 def build_dwh() -> None:

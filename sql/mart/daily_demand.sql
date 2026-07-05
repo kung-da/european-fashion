@@ -26,7 +26,8 @@ SELECT
 FROM dwh.fact_sales   fs
 JOIN dwh.dim_date      d  ON fs.sale_date_key = d.date_key
 JOIN dwh.dim_product   p  ON fs.product_key   = p.product_key
-JOIN dwh.dim_geography g  ON fs.geography_key = g.geography_key
+JOIN dwh.dim_customer  c  ON fs.customer_key  = c.customer_key
+JOIN dwh.dim_geography g  ON c.geography_key  = g.geography_key
 JOIN dwh.dim_channel   ch ON fs.channel_key   = ch.channel_key
 GROUP BY
     d.full_date, d.day_of_week, d.day_name, d.is_weekend,
